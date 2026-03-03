@@ -1,0 +1,7 @@
+# Virtual Environment
+crash_api/
+.crash_api/
+
+# Python cache
+__pycache__/
+*.pyc
