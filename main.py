@@ -9,9 +9,11 @@ from flask import Flask, request, jsonify
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from database import Base, User
+from flask_cors import CORS
 
 
 app = Flask(__name__)
+CORS(app)
 
 
 allowed_methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
@@ -73,6 +75,23 @@ def users():
         
     else:
         return jsonify({"error" : "Method Not Allowed!"}), 405
+    
+
+@app.route("/register", methods=allowed_methods)
+def register():
+    data = request.get_json
+
+    if data["username"] == "" or data["email"] == "" or data["password"]:
+            return jsonify({"error": "Fields cannot be empty!"}), 400
+        else:
+            #Store user in users table using SQLAlchemy
+            new_user = User(username=data["username"], email=data["email"], password=data["password"])
+            my_session.add(new_user)
+            my_session.commit()
+            return jsonify({"message": f"User created successfully! {data['username']} "}), 201
+
+
+
 
 
 
