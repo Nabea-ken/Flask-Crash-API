@@ -77,7 +77,7 @@ def users():
         return jsonify({"error" : "Method Not Allowed!"}), 405
     
 
-@app.route("/register", methods=allowed_methods)
+""" @app.route("/register", methods=allowed_methods)
 def register():
     data = request.get_json
 
@@ -88,7 +88,7 @@ def register():
             new_user = User(username=data["username"], email=data["email"], password=data["password"])
             my_session.add(new_user)
             my_session.commit()
-            return jsonify({"message": f"User created successfully! {data['username']} "}), 201
+            return jsonify({"message": f"User created successfully! {data['username']} "}), 201 """
 
 
 
