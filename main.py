@@ -6,14 +6,23 @@
 # 4. Define a Status code (200, 201, 400, 404, 500)
 
 from flask import Flask, request, jsonify
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token
+from flask_bcrypt import Bcrypt
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
-from database import Base, User, Authentication
+from database import Base, Employee, Authentication
 from flask_cors import CORS
 
 
 app = Flask(__name__)
+app.config["JWT_SECRET_KEY"] = "ajkgaijeroannnv"
+
+
 CORS(app)
+
+jwt = JWTManager(app)
+
+bcrypt = Bcrypt(app)
 
 
 allowed_methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
@@ -46,22 +55,24 @@ def home():
         return jsonify({"error": "Method not allowed"}), 405
     
     
-# A route to handle GET and POST requests for users.
-@app.route("/users", methods=allowed_methods)
-def users():
+# A route to handle GET and POST requests for employees.
+@app.route("/employees", methods=allowed_methods)
+@jwt_required()
+def employees():
     if request.method.upper() == 'GET':
-        #Return a list of users from table using SQLAlchemy
-        query = select(User)
-        users = my_session.scalars(query).all()
-        data = []
-        for user in users:
-            data.append({
-                "id": user.id,
-                "name": user.name,
-                "location": user.location,
-                "age": user.age
+        #Return a list of employees from table using SQLAlchemy
+        employee_list = []
+        query = select(Employee)
+        my_employee = list(my_session.scalars(query).all())
+        
+        for employee in my_employee:
+            employee_list.append({
+                "id": employee.id,
+                "name": employee.name,
+                "location": employee.location,
+                "age": employee.age
             })
-        return jsonify({"data": data}), 200
+        return jsonify({"data": employee_list}), 200
     
     elif request.method.upper() == 'POST':
         #Convert JSON to Dictionary
@@ -70,11 +81,13 @@ def users():
         if data["name"] == "" or data["location"] == "" or data["age"] == "":
             return jsonify({"error": "Name, Location, and Age cannot be empty!"}), 400
         else:
-            #Store user in users table using SQLAlchemy
-            new_user = User(name=data["name"], location=data["location"], age=data["age"])
-            my_session.add(new_user)
+            #Store employee in employees table using SQLAlchemy
+            new_employee = Employee(name=data["name"], location=data["location"], age=data["age"])
+            my_session.add(new_employee)
             my_session.commit()
-            return jsonify({"message": f"User created successfully! {data['name']} from {data['location']}"}), 201
+            my_session.close()
+            
+            return jsonify({"message": f"Employee created successfully! {data['name']} from {data['location']}"}), 201
         
     else:
         return jsonify({"error" : "Method Not Allowed!"}), 405
@@ -106,16 +119,21 @@ def register():
         if existing_user:
             return jsonify({"error": "Email already registered"}), 409
 
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+
         new_user = Authentication(
             full_name=full_name,
             email=email,
-            password=password
+            password=hashed_password
         )
 
         my_session.add(new_user)
         my_session.commit()
 
-        return jsonify({"message": f"User created successfully! {full_name}"}), 201
+        # Generate a unique token using the user email
+        token = create_access_token(identity=data["email"])
+
+        return jsonify({"message": f"User created successfully! {full_name}", "token": token}), 201
 
         
 
@@ -140,20 +158,28 @@ def login():
             return jsonify({"error": "Email and Password cannot be empty!"}), 400
 
         query = select(Authentication).where(Authentication.email == email)
-        user = my_session.scalars(query).first()
+        auth = my_session.scalars(query).first()
+        print("Queried User:---------------", auth)  # Debugging statement to check the retrieved user
+        check_password = bcrypt.check_password_hash(auth.password, password)
 
-        if user is None:
+        if not auth:
             return jsonify({"error": "User not found!"}), 404
 
-        if user.password == password:
-            return jsonify({"message": f"Login successful! Welcome {user.full_name}"}), 200
-        else:
+        if not check_password:
             return jsonify({"error": "Incorrect password!"}), 401
+
+        token = create_access_token(identity=auth.email)
+
+        return jsonify({
+            "message": f"Login successful! Welcome {auth.full_name}",
+            "token": token
+        }), 200
 
     except Exception as e:
         print("ERROR:", str(e))
         return jsonify({"error": "Server error"}), 500
-    
+   
+
 
 """ @app.route("/register", methods=allowed_methods)
 def register():
