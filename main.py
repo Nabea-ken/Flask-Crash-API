@@ -95,7 +95,7 @@ def employees():
 
     except Exception as e:
         print("ERROR:", str(e))
-        return jsonify({"error": "Server error"}), 500
+        return jsonify({"error": str(e)}), 500
     
 # Register route to create a new user in the user_authentication table with full_name, email, and password fields. 
 # Check if email already exists before creating a new user. Return appropriate status codes and messages for success and error cases.
@@ -129,7 +129,7 @@ def register():
             new_user = Authentication(
                 full_name=full_name,
                 email=email,
-                password=hashed_password
+                hashed_password=hashed_password
             )
 
             my_session.add(new_user)
@@ -142,7 +142,7 @@ def register():
 
     except Exception as e:
         print("ERROR:", str(e)) 
-        return jsonify({"error": "Server error"}), 500
+        return jsonify({"error": str(e)}), 500
 
 # Login route to authenticate users based on email and password stored in the user_authentication table
 @app.route("/login", methods=allowed_methods)
@@ -168,7 +168,7 @@ def login():
             if not auth:
                 return jsonify({"error": "User not found!"}), 404
 
-            check_password = bcrypt.check_password_hash(auth.password, password)
+            check_password = bcrypt.check_password_hash(auth.hashed_password, password)
 
             if not check_password:
                 return jsonify({"error": "Incorrect password!"}), 401
@@ -182,7 +182,7 @@ def login():
 
     except Exception as e:
         print("ERROR:", str(e))
-        return jsonify({"error": "Server error"}), 500
+        return jsonify({"error": str(e)}), 500
    
 
 
