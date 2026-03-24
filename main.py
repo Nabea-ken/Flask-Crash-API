@@ -59,45 +59,50 @@ def home():
 @app.route("/employees", methods=allowed_methods)
 @jwt_required()
 def employees():
-    if request.method.upper() == 'GET':
-        #Return a list of employees from table using SQLAlchemy
-        employee_list = []
-        query = select(Employee)
-        my_employee = list(my_session.scalars(query).all())
-        
-        for employee in my_employee:
-            employee_list.append({
-                "id": employee.id,
-                "name": employee.name,
-                "location": employee.location,
-                "age": employee.age
-            })
-        return jsonify({"data": employee_list}), 200
-    
-    elif request.method.upper() == 'POST':
-        #Convert JSON to Dictionary
-        data = request.get_json()
-        #Check if all fields are received
-        if data["name"] == "" or data["location"] == "" or data["age"] == "":
-            return jsonify({"error": "Name, Location, and Age cannot be empty!"}), 400
-        else:
-            #Store employee in employees table using SQLAlchemy
-            new_employee = Employee(name=data["name"], location=data["location"], age=data["age"])
-            my_session.add(new_employee)
-            my_session.commit()
-            my_session.close()
+    try:
+        if request.method.upper() == 'GET':
+            #Return a list of employees from table using SQLAlchemy
+            employee_list = []
+            query = select(Employee)
+            my_employee = list(my_session.scalars(query).all())
             
-            return jsonify({"message": f"Employee created successfully! {data['name']} from {data['location']}"}), 201
+            for employee in my_employee:
+                employee_list.append({
+                    "id": employee.id,
+                    "name": employee.name,
+                    "location": employee.location,
+                    "age": employee.age
+                })
+            return jsonify({"data": employee_list}), 200
         
-    else:
-        return jsonify({"error" : "Method Not Allowed!"}), 405
+        elif request.method.upper() == 'POST':
+            #Convert JSON to Dictionary
+            data = request.get_json()
+            #Check if all fields are received
+            if data["name"] == "" or data["location"] == "" or data["age"] == "":
+                return jsonify({"error": "Name, Location, and Age cannot be empty!"}), 400
+            else:
+                #Store employee in employees table using SQLAlchemy
+                new_employee = Employee(name=data["name"], location=data["location"], age=data["age"])
+                my_session.add(new_employee)
+                my_session.commit()
+                my_session.close()
+                
+                return jsonify({"message": f"Employee created successfully! {data['name']} from {data['location']}"}), 201
+            
+        else:
+            return jsonify({"error" : "Method Not Allowed!"}), 405
+
+    except Exception as e:
+        print("ERROR:", str(e))
+        return jsonify({"error": "Server error"}), 500
     
 # Register route to create a new user in the user_authentication table with full_name, email, and password fields. 
 # Check if email already exists before creating a new user. Return appropriate status codes and messages for success and error cases.
 @app.route("/register", methods=allowed_methods)
 def register():
-    if request.method.upper() == 'POST':
-        try:
+    try:
+        if request.method.upper() == 'POST':
             data = request.get_json()
 
             #debug
@@ -113,6 +118,7 @@ def register():
             if not full_name or not email or not password:
                 return jsonify({"error": "Full Name, Email, and Password cannot be empty!"}), 400
             
+
             existing_user = my_session.query(Authentication).filter_by(email=data["email"]).first()
 
             if existing_user:
@@ -134,42 +140,45 @@ def register():
 
             return jsonify({"message": f"User created successfully! {full_name}", "token": token}), 201
 
-        except Exception as e:
-            print("ERROR:", str(e)) 
-            return jsonify({"error": "Server error"}), 500
+    except Exception as e:
+        print("ERROR:", str(e)) 
+        return jsonify({"error": "Server error"}), 500
 
 # Login route to authenticate users based on email and password stored in the user_authentication table
 @app.route("/login", methods=allowed_methods)
 def login():
     try:
-        data = request.get_json()
+        if request.method.upper() == 'POST':
+            data = request.get_json()
 
-        if not data:
-            return jsonify({"error": "No data received"}), 400
+            if not data:
+                return jsonify({"error": "No data received"}), 400
 
-        email = data.get("email")
-        password = data.get("password")
+            email = data.get("email")
+            password = data.get("password")
 
-        if not email or not password:
-            return jsonify({"error": "Email and Password cannot be empty!"}), 400
+            if not email or not password:
+                return jsonify({"error": "Email and Password cannot be empty!"}), 400
 
-        query = select(Authentication).where(Authentication.email == email)
-        auth = my_session.scalars(query).first()
-        print("Queried User:---------------", auth)  # Debugging statement to check the retrieved user
-        check_password = bcrypt.check_password_hash(auth.password, password)
+            query = select(Authentication).where(Authentication.email == email)
+            auth = my_session.scalars(query).first()
+            print("Queried User:---------------", auth)
 
-        if not auth:
-            return jsonify({"error": "User not found!"}), 404
+            #check if user exists BEFORE checking password
+            if not auth:
+                return jsonify({"error": "User not found!"}), 404
 
-        if not check_password:
-            return jsonify({"error": "Incorrect password!"}), 401
+            check_password = bcrypt.check_password_hash(auth.password, password)
 
-        token = create_access_token(identity=auth.email)
+            if not check_password:
+                return jsonify({"error": "Incorrect password!"}), 401
 
-        return jsonify({
-            "message": f"Login successful! Welcome {auth.full_name}",
-            "token": token
-        }), 200
+            token = create_access_token(identity=auth.email)
+
+            return jsonify({
+                "message": f"Login successful! Welcome {auth.full_name}",
+                "token": token
+            }), 200
 
     except Exception as e:
         print("ERROR:", str(e))
