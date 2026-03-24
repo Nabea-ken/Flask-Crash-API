@@ -5,6 +5,7 @@
 # 3. Define an HTTP method (GET, POST, PUT, DELETE)
 # 4. Define a Status code (200, 201, 400, 404, 500)
 
+import sentry_sdk
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token
 from flask_bcrypt import Bcrypt
@@ -19,6 +20,13 @@ app.config["JWT_SECRET_KEY"] = "ajkgaijeroannnv"
 
 
 CORS(app)
+
+sentry_sdk.init(
+    dsn="https://04b6c7d9310f40f382043999b7073f58@o4511094688579584.ingest.de.sentry.io/4511094767288400",
+    # Add data like request headers and IP for users,
+    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    send_default_pii=True,
+)
 
 jwt = JWTManager(app)
 
